@@ -1,0 +1,62 @@
+name: Build & Publish Docs
+
+# Trigger the workflow whenever you push new .deb files or change the workflow itself
+on:
+  push:
+    paths:
+      - '**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.x.x
+
+      - name: Install Node.js v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x.x
+          cache: 'pnpm'
+          cache-dependency-path: ./pnpm-lock.yaml
+      
+      - name: Cache .astro + output
+        uses: actions/cache@v4
+        with:
+          path: |
+            .astro/
+            node_modules/
+            dist/
+          key: ${{ github.repository }}-docs-cache-${{ github.ref }}
+
+      - name: Build astro
+        run: |
+          pnpm install
+          pnpm run build
+
+      - name: Upload for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    name: Deploy repo
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+        name: github-pages
+        url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+        pages: write
+        id-token: write
+    steps:
+        - name: Deploy
+          id: deploy
+          uses: actions/deploy-pages@v4
